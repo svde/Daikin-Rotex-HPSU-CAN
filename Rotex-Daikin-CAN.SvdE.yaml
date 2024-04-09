@@ -258,8 +258,8 @@ number:
     id: r_soll
     optimistic: true
     mode: box
-    min_value: 15
-    max_value: 25
+    min_value: 5
+    max_value: 40
     step: 0.1
     initial_value: 19
     unit_of_measurement: "°C"
