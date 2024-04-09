@@ -465,7 +465,7 @@ sensor:
     accuracy_decimals: 0
 
   - platform: template
-    name: " (Qsc)"
+    name: "Qsc"
     id: Qsc
     unit_of_measurement: "kWh"
     icon: "mdi:thermometer-lines"
