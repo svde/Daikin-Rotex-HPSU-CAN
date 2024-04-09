@@ -526,8 +526,8 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Aussentemperatur"
-    id: temperature_outside
+    name: "Aussentemperatur (TA)"
+    id: TA
     unit_of_measurement: "°C"
     icon: "mdi:thermometer-lines"
     device_class: "temperature"
@@ -1032,7 +1032,7 @@ canbus:
         - lambda: |-
             if(x[0]==0xd2 and x[1]==0x00 and x[3]==0x00 and x[4] == 0x0c) {
               float temperature = float(((int((x[6])+( (x[5])<<8))) ^ 0x8000) - 0x8000)/10;
-              id(temperature_outside).publish_state(temperature);
+              id(TA).publish_state(temperature);
               ESP_LOGD("main", "Temperature received over can is %f", temperature);
             }
 
