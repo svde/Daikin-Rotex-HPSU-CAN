@@ -539,7 +539,7 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Warmwassertemperatur"
+    name: "Warmwassertemperatur (TDHW)"
     id: temperature_water
     unit_of_measurement: "°C"
     icon: "mdi:thermometer-lines"
