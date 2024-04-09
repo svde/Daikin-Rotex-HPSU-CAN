@@ -479,6 +479,15 @@ sensor:
     accuracy_decimals: 0
 
   - platform: template
+    name: "Qch"
+    id: Qch
+    unit_of_measurement: "kWh"
+    icon: "mdi:thermometer-lines"
+    device_class: "ENERGY_STORAGE"
+    state_class: "measurement"
+    accuracy_decimals: 0
+
+  - platform: template
     name: "Umwaelzpumpe"
     id: Umwaelzpumpe
     unit_of_measurement: "%"
@@ -825,6 +834,13 @@ time:
               data: [ 0x31, 0x00, 0xFA, 0x06, 0xA6, 0x00, 0x00 ]
               can_id: 0x680
           - delay: 250ms
+
+# Qch
+          - canbus.send:
+              data: [ 0x31, 0x00, 0xFA, 0x06, 0xA7, 0x00, 0x00 ]
+              can_id: 0x680
+          - delay: 250ms
+
 canbus:
   - platform: esp32_can
     tx_pin: GPIO47
@@ -984,6 +1000,15 @@ canbus:
              id(Qsc).publish_state(temperature);
              ESP_LOGD("main", "Temperature received over can is %f", temperature);
             }
+
+#Qch
+    - can_id: 0x180
+      then:
+        - lambda: |-
+            if(x[0]==0xd2 and x[2]==0xFA and x[3]==0x06 and x[4] ==0xA7) {
+             float temperature =float((float((int((x[6])+( (x[5])<<8))))));
+             id(Qch).publish_state(temperature);
+             ESP_LOGD("main", "Temperature received over can is %f", temperature);
             }
 
 #Warmwasser-Temperaturabfrage
