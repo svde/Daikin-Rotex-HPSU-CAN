@@ -1055,6 +1055,7 @@ canbus:
               ESP_LOGD("main", "Temperature received over can is %f", temperature);
             }
 
+
 #Vorlauftemperaturabfrage (TVBH)
     - can_id: 0x180
       then:
@@ -1238,12 +1239,12 @@ canbus:
       then:
        - lambda: |-
               int wert0 = int(x[0]);
-              int wert1 =int(x[1]);
-              int wert2 =int(x[2]);
-              int wert3 =int(x[3]);
-              int wert4 =int(x[4]);
-              int wert5 =int(x[5]);
-              int wert6 =int(x[6]);
+              int wert1 = int(x[1]);
+              int wert2 = int(x[2]);
+              int wert3 = int(x[3]);
+              int wert4 = int(x[4]);
+              int wert5 = int(x[5]);
+              int wert6 = int(x[6]);
               float wert7 = float(int((x[6])+( (x[5])<<8)));
               ESP_LOGD("main", "Antwort von 180 Hex: %x %x %x %x %x %x %x", wert0, wert1, wert2, wert3, wert4, wert5, wert6);
               ESP_LOGD("main", "Antwort von 180 Float: %f", wert7);
@@ -1254,12 +1255,12 @@ canbus:
       then:
        - lambda: |-
               int wert0 = int(x[0]);
-              int wert1 =int(x[1]);
-              int wert2 =int(x[2]);
-              int wert3 =int(x[3]);
-              int wert4 =int(x[4]);
-              int wert5 =int(x[5]);
-              int wert6 =int(x[6]);
+              int wert1 = int(x[1]);
+              int wert2 = int(x[2]);
+              int wert3 = int(x[3]);
+              int wert4 = int(x[4]);
+              int wert5 = int(x[5]);
+              int wert6 = int(x[6]);
               float wert7 = float(int((x[6])+( (x[5])<<8)));
               ESP_LOGD("main", "Antwort von 180 Hex: %x %x %x %x %x %x %x", wert0, wert1, wert2, wert3, wert4, wert5, wert6);
               ESP_LOGD("main", "Antwort von 180 Float: %f", wert7);
@@ -1270,12 +1271,12 @@ canbus:
       then:
        - lambda: |-
               int wert0 = int(x[0]);
-              int wert1 =int(x[1]);
-              int wert2 =int(x[2]);
-              int wert3 =int(x[3]);
-              int wert4 =int(x[4]);
-              int wert5 =int(x[5]);
-              int wert6 =int(x[6]);
+              int wert1 = int(x[1]);
+              int wert2 = int(x[2]);
+              int wert3 = int(x[3]);
+              int wert4 = int(x[4]);
+              int wert5 = int(x[5]);
+              int wert6 = int(x[6]);
               float wert7 = float(int((x[6])+( (x[5])<<8)));
               ESP_LOGD("main", "Antwort von 180 Hex: %x %x %x %x %x %x %x", wert0, wert1, wert2, wert3, wert4, wert5, wert6);
               ESP_LOGD("main", "Antwort von 180 Float: %f", wert7);
