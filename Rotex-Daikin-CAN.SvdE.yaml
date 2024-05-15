@@ -446,15 +446,23 @@ sensor:
     accuracy_decimals: 2
     update_interval: 10s
     lambda: |-
-      if (id(status_kessel).state == 1) {
-          const float tv1_state = id(tv1).state;
-          const float ruecklauf_state = id(ruecklauf).state;
-          const float durchfluss_state = id(durchfluss).state;
-
-          return ((tv1_state - ruecklauf_state) * (4.19 * durchfluss_state)) / 3600;
+      if (id(betriebsart).state == "Warmwasserbereitung") {
+        return ((id(tv1).state - id(ruecklauf).state) * (4.19 * id(durchfluss).state)) / 3600;
+      } else if (id(betriebsart).state == "Heizen") {
+        return ((id(TVBH).state - id(ruecklauf).state) * (4.19 * id(durchfluss).state)) / 3600;
       } else {
-          return 0.0; // oder einen anderen Wert, wenn der Kompressor nicht aktiv ist
+        return 0.0;
       }
+#     if (id(status_kessel).state == 1) {
+#         const float tv1_state = id(tv1).state;
+#         const float ruecklauf_state = id(ruecklauf).state;
+#         const float durchfluss_state = id(durchfluss).state;
+#         return ((tv1_state - ruecklauf_state) * (4.19 * durchfluss_state)) / 3600;
+#     } else {
+#         return 0.0; // oder einen anderen Wert, wenn der Kompressor nicht aktiv ist
+#     }
+#         const float TVBH_state = id(TVBH).state;
+#         return ((TVBH_state - ruecklauf_state) * (4.91 * durchfluss_state)) / 3600;
 
   # - platform: template
   #   name: "Rocon u1"
