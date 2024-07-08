@@ -2,10 +2,22 @@
 [![de](https://img.shields.io/badge/lang-de-blue.svg)](README.md)
 [![en](https://img.shields.io/badge/lang-en-red.svg)](README.en.md) 
 
+# Telegram Gruppenchat
+https://t.me/+C1iVhAjaENw0ODY0
 
 <br><br>
 "Ein Kaffee für nächste lange Nacht vor dem Rechner wäre toll" ist aber natürlich kein muss.
 <br>[![Paypal](https://user-images.githubusercontent.com/41958506/212499642-b2fd097a-0938-4bfc-b37b-74df64592c58.png)](https://www.paypal.com/donate/?hosted_button_id=H94LZRQW9PFQ4)
+
+# Warning!!
+Die Verwendung von Daikin-Rotex-HPSU-Can kann das Heizsystem beschädigen. Die Verwendung von Daikin-Rotex-HPSU-Can erfolgt auf eigene Gefahr. Der Schöpfer kann nicht für Schäden verantwortlich gemacht werden.
+
+Sie können einen Verlust der Garantie und Unterstützung durch den Hersteller riskieren!!!!
+
+Diese Software wird vom Hersteller nicht unterstützt!!!!
+
+
+
 
 # Rotex /Daikin HPSU CAN
 
@@ -26,7 +38,11 @@ Ein ESP32 S3 mini (Zero) funktioniert auch.
 7. Jetzt sollte sich automatisch ein Browser Fenster öffnen, wo du deine WLAN SSID und das Passwort für dein WLAN abgefragt wird. Hier trägst du jetzt deine Zugangsdaten für dein WLAN ein.
 8. Nach erfolgreicher Verbindung deines ESP32 mit dem WLAN sollte dieser über http://rotex.local erreichbar sein. Wenn nicht schau bitte auf deinem Router nach der richtigen IP Adresse.
 9. Wen du jetzt keine weitere Homeautomatisierungssoftware benutzt, bist du jetzt mit der Installation fertig und kannst den ESP32 nach den Schaubildern an die Rotex / Daikin anschliessen.
-10. Wenn du eine Homeautomatisierungssoftware zb. Home Assistant benutzt, kannst du jetzt den ESP32 verbinden. Dieser sollte von Home Assistant automatisch gefunden werden.
+10. Für eine Benutzung mit Home Assistant sollte das Addon ESPHome installiert werden, um in der secret.yaml Datei noch:<br>
+    api_encryption_key: "heqmwzvu7TckUlOZjse5Y2dPSiNR8a5+LZDPmSC3URI="<br>
+    ota_password: "heqmwzvu7TckUlOZjse5Y2dPSiNR8a5+LZDPmSC3URI="<br>
+    einzutragen. Die Datei ist unter ESPhome zufinden. Hier für würde ich zb. den File Editor verwenden.
+13. Wenn du eine Homeautomatisierungssoftware zb. Home Assistant benutzt, kannst du jetzt den ESP32 verbinden. Dieser sollte von Home Assistant automatisch gefunden werden.
 <br><br>
 # :sparkles: Congratulation! :sparkles:
 
@@ -45,7 +61,8 @@ Die Rotex.bin Datei dient zum vereinfachten updaten über die WEB-UI Oberfläche
 - Betriebsmodus kann verstellt werden
 - Heizkurven Verstellung in 0.01 Schritten (Standard in 0.1 Schritten)
 - Zwei neue Schalter angelegt um auch die Thermostat Eingänge von der Rotex / Daikin direkt zwischen Heizen / Kühlen umzuschalten.
-- Neues Feature Fehlercode Anzeige mit Beschreibung des Fehlers mit Handbuch Seitenangabe!! 
+- Neues Feature Fehlercode Anzeige mit Beschreibung des Fehlers mit Handbuch Seitenangabe!!
+- Abfrage Intervall kann jetzt per Schalter abgeschaltet werden. Bitte beachten nach dem Neustart des ESP bleibt die Abfrage aus.
 Es werden alle relevanten Daten Abgefragt die man eigentlich benötigt.
 <br>  
 ## weitere .YAML Dateien:
