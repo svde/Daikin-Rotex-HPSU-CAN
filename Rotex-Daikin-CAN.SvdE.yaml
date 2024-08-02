@@ -1,8 +1,15 @@
-############################### Version 1.3.4 #####################################
+############################### Version 1.4.0 #####################################
 substitutions:
   rx_pin: GPIO48
   tx_pin: GPIO47
+  interval_time: 20s
 
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+captive_portal:
 
 esphome:
   name: rotex
@@ -17,14 +24,19 @@ globals:
   - id: backup_dhw
     type: int
 
+  - id: interval_active
+    type: bool
+    restore_value: yes
+    initial_value: 'true'
+
+
 # Enable logging
 logger:
- # level: DEBUG
-
-# Enable Home Assistant API
-api:
+  #level: VERBOSE
 
 ota:
+  platform: esphome
+  password: !secret ota_password
 
 web_server:
 
@@ -37,10 +49,9 @@ wifi:
     ssid: "Rotex Fallback Hotspot"
     password: "H3jGqANSa7aL"
 
-captive_portal:
-
-
 ############################## Text Sensoren ########################################
+# sort by name:
+
 text_sensor:
   - platform: template
     name: "Betriebsart"
@@ -171,21 +182,49 @@ text_sensor:
       }
 
   - platform: template
+    name: "SG Modus"
+    id: sg_modus
+
+  - platform: template
+    name: "Smart Grid"
+    id: smartgrid
+
+  - platform: template
+    name: "Status Kesselpumpe"
+    id: status_kessel
+
+  - platform: template
     name: "Status Kompressor"
-    id: text_status2
-    lambda: |-
-      if(id(status_kessel).state == 0){
-        return {"Aus"};
-      } else if (id(status_kessel).state == 1){
-        return {"An"};
-       } else {
-        return {"Unknown"};
-      }
+    id: status_kompressor
 
 ################################ Button und Switch ##############################################
+# sorted on name:
+
 button:
+
+  - platform: gpio
+    name: "Heizen Thermostat"
+    pin: GPIO36
+
+switch:
   - platform: template
-    name: Warmwasser bereiten
+    name: "Intervall Abfrage"
+    optimistic: true
+    turn_on_action:
+      - globals.set:
+          id: interval_active
+          value: 'true'
+    turn_off_action:
+      - globals.set:
+          id: interval_active
+          value: 'false'
+
+  - platform: gpio
+    name: "Kühlen Thermostat"
+    pin: GPIO37
+
+  - platform: template
+    name: "Warmwasser bereiten"
     id: ww_button
     icon: "mdi:water-boiler"
     on_press:
@@ -206,66 +245,13 @@ button:
               return {0x30, 0x00, 0x13, high_byte, low_byte, 0x00, 0x00};
         - logger.log: CAN Nachricht wurde gesendet
 
-switch:
-  - platform: gpio
-    name: Heizen Thermostat
-    pin: GPIO36
-
-  - platform: gpio
-    name: Kühlen Thermostat
-    pin: GPIO37
+  - platform: restart
+    name: "Rotex ESP Restart"
 
 ############################### Number (Box) ###############################################
+# sorted on name:
+
 number:
-
-##### Raumsoll 1
-  - platform: template
-    name: "Raumsoll 1"
-    id: raumsoll1
-    optimistic: true
-    mode: box
-    min_value: 5
-    max_value: 40
-    step: 0.1
-    initial_value: 19
-    unit_of_measurement: "°C"
-    icon: "mdi:thermometer-lines"
-    device_class: "temperature"
-    set_action:
-      - canbus.send:
-          can_id: 0x680
-          data: !lambda |-
-            uint16_t temperature = (uint16_t)(x * 10); // Convert to int16be
-            uint8_t high_byte = temperature >> 8;
-            uint8_t low_byte = temperature & 0xFF;
-            return { 0x30, 0x00, 0x05, high_byte, low_byte, 0x00, 0x00 };
-            // return { 0x30, 0x00, 0xFA, 0x00, 0x05, high_byte, low_byte };
-      - logger.log:
-          format: "Raumsoll 1 set to %f"
-          args: [ 'id(raumsoll1).state' ]
-
-#### Heizkurve
-  - platform: template
-    name: "Heizkurve"
-    id: heizkurve
-    optimistic: true
-    mode: box
-    min_value: 0
-    max_value: 3
-    step: 0.01
-    initial_value: 0.48
-    set_action:
-      - delay: 250ms
-      - canbus.send:
-          can_id: 0x680
-          data: !lambda |-
-            uint16_t hk = (uint16_t)(x * 100); // Convert to int16be
-            uint8_t high_byte = hk >> 8;
-            uint8_t low_byte = hk & 0xFF;
-            return { 0x30, 0x00, 0xFA, 0x01, 0x0E, high_byte, low_byte };
-      - logger.log:
-          format: "Heizkurve set to %f"
-          args: [ 'id(heizkurve).state' ]
 
 ##### DHW setpoint
   - platform: template
@@ -293,31 +279,28 @@ number:
           format: "DHW setpoint set to %f"
           args: [ 'id(dhw_setpoint).state' ]
 
-##### Min VL
+#### Heizkurve
   - platform: template
-    name: "Min VL"
-    id: min_vl
+    name: "Heizkurve"
+    id: heizkurve
     optimistic: true
     mode: box
-    min_value: 10
-    max_value: 70
-    step: 1
-    initial_value: 25
-    unit_of_measurement: "°C"
-    icon: "mdi:thermometer-lines"
-    device_class: "temperature"
+    min_value: 0
+    max_value: 3
+    step: 0.01
+    initial_value: 0.48
     set_action:
       - delay: 250ms
       - canbus.send:
           can_id: 0x680
           data: !lambda |-
-            uint16_t temperature = (uint16_t)(x * 10); // Convert to int16be
-            uint8_t high_byte = temperature >> 8;
-            uint8_t low_byte = temperature & 0xFF;
-            return { 0x30, 0x00, 0xFA, 0x01, 0x2B, high_byte, low_byte };
+            uint16_t hk = (uint16_t)(x * 100); // Convert to int16be
+            uint8_t high_byte = hk >> 8;
+            uint8_t low_byte = hk & 0xFF;
+            return { 0x30, 0x00, 0xFA, 0x01, 0x0E, high_byte, low_byte };
       - logger.log:
-          format: "Min VL set to %f"
-          args: [ 'id(min_vl).state' ]
+          format: "Heizkurve set to %f"
+          args: [ 'id(heizkurve).state' ]
 
 ##### Max VL Set
   - platform: template
@@ -344,6 +327,58 @@ number:
       - logger.log:
           format: "Max VL set to %f"
           args: [ 'id(max_vl_set).state' ]
+
+##### Min VL
+  - platform: template
+    name: "Min VL"
+    id: min_vl
+    optimistic: true
+    mode: box
+    min_value: 10
+    max_value: 70
+    step: 1
+    initial_value: 25
+    unit_of_measurement: "°C"
+    icon: "mdi:thermometer-lines"
+    device_class: "temperature"
+    set_action:
+      - delay: 250ms
+      - canbus.send:
+          can_id: 0x680
+          data: !lambda |-
+            uint16_t temperature = (uint16_t)(x * 10); // Convert to int16be
+            uint8_t high_byte = temperature >> 8;
+            uint8_t low_byte = temperature & 0xFF;
+            return { 0x30, 0x00, 0xFA, 0x01, 0x2B, high_byte, low_byte };
+      - logger.log:
+          format: "Min VL set to %f"
+          args: [ 'id(min_vl).state' ]
+
+##### Raumsoll 1
+  - platform: template
+    name: "Raumsoll 1"
+    id: raumsoll1
+    optimistic: true
+    mode: box
+    min_value: 5
+    max_value: 40
+    step: 0.1
+    initial_value: 19
+    unit_of_measurement: "°C"
+    icon: "mdi:thermometer-lines"
+    device_class: "temperature"
+    set_action:
+      - delay: 250ms
+      - canbus.send:
+          can_id: 0x680
+          data: !lambda |-
+            uint16_t temperature = (uint16_t)(x * 10); // Convert to int16be
+            uint8_t high_byte = temperature >> 8;
+            uint8_t low_byte = temperature & 0xFF;
+            return { 0x30, 0x00, 0x05, high_byte, low_byte, 0x00, 0x00 };
+      - logger.log:
+          format: "Raumsoll 1 set to %f"
+          args: [ 'id(raumsoll1).state' ]
 
 ##### T Vorlauf Tag Set
   - platform: template
@@ -372,6 +407,8 @@ number:
           args: [ 'id(t_vorlauf_tag_set).state' ]
 
 ####################### Select Tasten ###############################
+# sorted on id:
+
 #Set Betriebsmodus
 select:
   - platform: template
@@ -428,8 +465,60 @@ select:
               };
               return {0x30, 0x00, 0xFA, 0x01, 0x41, 0x00, mode_map.at(x)};
 
+#Set SG Funktion
+  - platform: template
+    name: "SG Modus"
+    id: sg
+    optimistic: true
+    options:
+      - "Aus"
+      - "SG Modus 1"
+      - "SG Modus 2"
+    initial_option: Aus
+    set_action:
+      then:
+        - delay: 250ms
+        - canbus.send:
+            can_id: 0x680
+            data: !lambda |-
+              static const std::map<std::string, uint8_t> mode_map = {
+                {"Aus", 0},
+                {"SG Modus 1", 1},
+                {"SG Modus 2", 2}
+              };
+              return {0x30, 0x00, 0xFA, 0x06, 0x94, 0x00, mode_map.at(x)};
+
+
+#Set Smart Grid
+  - platform: template
+    name: "Smart Grid"
+    id: smartgrid
+    optimistic: true
+    options:
+      - "Aus"
+      - "An"
+    initial_option: Aus
+    set_action:
+      then:
+        - delay: 250ms
+        - canbus.send:
+            can_id: 0x680
+            data: !lambda |-
+              static const std::map<std::string, uint8_t> mode_map = {
+                {"Aus", 0},
+                {"An", 1}
+              };
+              return {0x30, 0x00, 0xFA, 0x06, 0x93, 0x00, mode_map.at(x)};
+
+
 ################################# Alle Sensoren #####################################
+# sorted on id:
 sensor:
+
+  - platform: wifi_signal
+    name: "WiFi Signal Sensor"
+    update_interval: 60s
+
   - platform: template
     name: "Fehlercode"
     id: Fehlercode
@@ -472,13 +561,6 @@ sensor:
   #   device_class: "temperature"
   #   state_class: "measurement"
   #   accuracy_decimals: 1
-
-  - platform: template
-    name: "Status Kessel"
-    id: status_kessel
-    internal: true
-    icon: "mdi:thermometer-lines"
-    accuracy_decimals: 0
 
   - platform: template
     name: "Wasserdruck (DS)"
@@ -681,201 +763,18 @@ sensor:
     accuracy_decimals: 0
 
 ########################### CAN Nachrichten abfragen #################################################
-# time:
-#   - platform: sntp
-#     on_time:
-#       - seconds: /15
-#         then:
-
-# #Fehlercode
-#           - canbus.send:
-#               data: [0x31, 0x00, 0xFA, 0x13, 0x88, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Heizkurve
-#           - canbus.send:
-#               data: [0x31, 0x00, 0xFA, 0x01, 0x0E, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Raumsoll1
-#           - canbus.send:
-#               data: [0x31, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Status Kessel
-#           - canbus.send:
-#               data: [0x31, 0x00, 0xFA, 0x0A, 0x8C, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #T-WW-Soll1
-#           - canbus.send:
-#               data: [0x31, 0x00, 0x13, 0x00, 0x00, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Umwälzpumpe
-#           - canbus.send:
-#               data: [0x31, 0x00, 0xFA, 0xC0, 0xF7, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Betriebsmodus
-#           - canbus.send:
-#               data: [0x31, 0x00, 0xFA, 0x01, 0x12, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Betriebsart
-#           - canbus.send:
-#               data: [0x31, 0x00, 0xFA, 0xC0, 0xF6, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #VL Soll  et dec value - ok /10
-#           - canbus.send:
-#               data: [0x31, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #BPV  et dec value - ok /10
-#           - canbus.send:
-#               data: [0x31, 0x00, 0xFA, 0xC0, 0xFB, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Volumenstrom 1/10 °C et dec value - ok /10
-#           - canbus.send:
-#               data: [ 0x31, 0x00, 0xFA, 0x01, 0xDA, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Außentemperatur 1/10 °C et dec value - ok /10
-#           - canbus.send:
-#               data: [ 0x31, 0x00, 0xFA, 0x00, 0x0C, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Warmwasser Temperatur  °C et dec value - ok /10
-#           - canbus.send:
-#               data: [ 0x31, 0x00, 0x0E, 0x00, 0x00, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Vorlauftemperatur (TVBH) - ok 1/10
-#           - canbus.send:
-#               data: [ 0x31, 0x00, 0xFA, 0xC1, 0x02, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 500ms
-
-# #Vorlauftemperatur Hzg (TV) - ok 1/10
-#           - canbus.send:
-#               data: [ 0x31, 0x00, 0xFA, 0xC0, 0xFC, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Rücklauftemperatur Hzg - ok 1/10
-#           - canbus.send:
-#               data: [ 0x31, 0x00, 0xFA, 0xC1, 0x00, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #WW Temperatur - ok + offset
-#           - canbus.send:
-#               data: [ 0x31, 0x00, 0xFA, 0x00, 0x0e, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #### 900 seconds ####
-#       - seconds: /900
-#         then:
-
-# #Max. VL Temp
-#           - canbus.send:
-#               data: [ 0x31, 0x00, 0x28, 0x00, 0x00, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Wasserdruck (DS)
-#           - canbus.send:
-#               data: [0x31, 0x00, 0x1C, 0x00, 0x00, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Min. VL Temp
-#           - canbus.send:
-#               data: [ 0x31, 0x00, 0xFA, 0x01, 0x2B, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #HK Funktion
-#           - canbus.send:
-#               data: [ 0x31, 0x00, 0xFA, 0x01, 0x41, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Spreizung Mod HZ
-#           - canbus.send:
-#               data: [ 0x31, 0x00, 0xFA, 0x06, 0x83, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Spreizung Mod WW
-#           - canbus.send:
-#               data: [ 0x31, 0x00, 0xFA, 0x06, 0x84, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #rt_pump
-#           - canbus.send:
-#               data: [ 0x31, 0x00, 0xFA, 0x06, 0xA4, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #rt_compressor
-#           - canbus.send:
-#               data: [ 0x31, 0x00, 0xFA, 0x06, 0xA5, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Qsc
-#           - canbus.send:
-#               data: [ 0x31, 0x00, 0xFA, 0x06, 0xA6, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Qch
-#           - canbus.send:
-#               data: [ 0x31, 0x00, 0xFA, 0x06, 0xA7, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Qchhp
-#           - canbus.send:
-#               data: [0x31, 0x00, 0xFA, 0x09, 0x20, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Erzeugte Energie gesamt (Qwp)
-#           - canbus.send:
-#               data: [0x31, 0x00, 0xFA, 0x09, 0x30, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Qboh
-#           - canbus.send:
-#               data: [0x31, 0x00, 0xFA, 0x09, 0x1C, 0x00, 0x00]
-#               can_id: 0x680
-#           - delay: 250ms
-
-# #Qdhw
-#         - canbus.send:
-#             data: [0x31, 0x00, 0xFA, 0x09, 0x2C, 0x00, 0x00]
-#             can_id: 0x680
-#         - delay: 250ms
+interval:
+  - interval:  ${interval_time}
+    then:
+      if:
+        condition:
+          - lambda: 'return id(interval_active);'
+        then:
+          #Status Kessel
+          - canbus.send:
+              data: [0x31, 0x00, 0xFA, 0x0A, 0x8C, 0x00, 0x00]
+              can_id: 0x680
+          - delay: 500ms
 
 canbus:
   - platform: esp32_can
@@ -887,6 +786,8 @@ canbus:
     on_frame:
 
 ################################# CAN Nachrichten empfangen (Auswertung) #####################################
+# sorted on can message
+
 #Max. VL Soll
 # SvdE not showing up in regular chatter
 # Q: 190   [7]  61 00 28 00 00 00 00
@@ -931,6 +832,30 @@ canbus:
               id(raumsoll1).publish_state(temperature);
             }
 
+# TA
+# Q: 69D   [7]  31 00 FA 00 0C 00 00
+# A: 180   [7]  D2 1D FA 00 0C 00 B9 = 185 = 18.5
+# Q: 69D   [7]  61 00 FA 00 0C 00 00
+# A: 300   [7]  D2 1D FA 00 0C 80 00
+# Q: 69D   [7]  C1 00 FA 00 0C 00 00
+# A: 600   [7]  D2 1D FA 00 0C 00 B9 = 185 = 18.5
+    - can_id: 0x180
+      then:
+        - lambda: |-
+            if(x[2]==0xFA && x[3]==0x00 && x[4]==0x0C) {
+              float temperature = float(((int((x[6])+((x[5])<<8))) ^ 0x8000) - 0x8000)/10;
+              id(TA).publish_state(temperature);
+              ESP_LOGD("main", "Temperature received over can is %f", temperature);
+            }
+    - can_id: 0x600
+      then:
+        - lambda: |-
+            if(x[2]==0xFA && x[3]==0x00 && x[4]==0x0C) {
+              float temperature = float(((int((x[6])+((x[5])<<8))) ^ 0x8000) - 0x8000)/10;
+              id(TA).publish_state(temperature);
+              ESP_LOGD("main", "Temperature received over can is %f", temperature);
+            }
+
 #Warmwasser-Temperaturabfrage
 # Q: 69D   [7]  31 00 FA 00 0E 00 00
 # A: 180   [7]  D2 1D FA 00 0E 01 E6
@@ -973,7 +898,7 @@ canbus:
             if(x[2]==0xFA && x[3]==0x00 && x[4]==0x13) {
               float temperature = float(float((int((x[6])+((x[5])<<8))))/10);
               id(dhw_setpoint).publish_state(temperature);
-              ESP_LOGD("main", "Temperature received over can is %f", temperature);
+              ESP_LOGD("main", "dhw_setpoint received over can is %f", temperature);
             }
 
 #Rücklauftemperaturabfrage (t_r1)
@@ -989,7 +914,7 @@ canbus:
             if(x[2]==0xFA && x[3]==0x00 && x[4]==0x16) {
               float temperature = float(float((int((x[6])+((x[5])<<8))))/10);
               id(ruecklauf).publish_state(temperature);
-              ESP_LOGD("main", "Temperature received over can is %f", temperature);
+              ESP_LOGD("main", "ruecklauf received over can is %f", temperature);
             }
 
 #Heizkurve
@@ -1005,7 +930,7 @@ canbus:
             if(x[2]==0xFA && x[3]==0x01 && x[4]==0x0E) {
               float temperature = float((float((int((x[6])+((x[5])<<8))))/100));
               id(heizkurve).publish_state(temperature);
-              ESP_LOGD("main", "Temperature received over can is %f", temperature);
+              ESP_LOGD("main", "heizkurve received over can is %f", temperature);
             }
 
     - can_id: 0x300
@@ -1014,7 +939,7 @@ canbus:
             if(x[2]==0xFA && x[3]==0x01 && x[4]==0x0E) {
               float temperature = float((float((int((x[6])+((x[5])<<8))))/100));
               id(heizkurve).publish_state(temperature);
-              ESP_LOGD("main", "Temperature received over can is %f", temperature);
+              ESP_LOGD("main", "heizkurve received over can is %f", temperature);
             }
 
     - can_id: 0x600
@@ -1023,7 +948,7 @@ canbus:
             if(x[2]==0xFA && x[3]==0x01 && x[4]==0x0E) {
               float temperature = float((float((int((x[6])+((x[5])<<8))))/100));
               id(heizkurve).publish_state(temperature);
-              ESP_LOGD("main", "Temperature received over can is %f", temperature);
+              ESP_LOGD("main", "heizkurve received over can is %f", temperature);
             }
 
 #Betriebsmodus (Automatik bei jeglicher Änderung)0x31, 0x00, 0xFA, 0x01, 0x12, 0x00, 0x00
@@ -1058,10 +983,7 @@ canbus:
         - lambda: |-
             if(x[2]==0xFA && x[3]==0x01 && x[4]==0x29) {
               float temperature = float(float((int((x[6])+((x[5])<<8))))/10);
-              id(t_vorlauf_tag).publish_state(temperature);
-              auto call = id(t_vorlauf_tag_set).make_call();
-              call.set_value(temperature);
-              call.perform();     
+              id(t_vorlauf_tag).publish_state(temperature);   
               ESP_LOGD("main", "Temperature received over can is %f", temperature);
             }
 
@@ -1167,10 +1089,46 @@ canbus:
 # A: 600   [7]  D2 1D FA 06 84 00 14 = 20
     - can_id: 0x180
       then:
-       - lambda: |-
+        - lambda: |-
             if(x[2]==0xFA && x[3]==0x06 && x[4]==0x84) {
               float temperature = float((float((int((x[6])+((x[5])<<8))))/10));
               id(spreizung_mod_ww).publish_state(temperature);
+              ESP_LOGD("main", "Temperature received over can is %f", temperature);
+            }
+
+#SGModus
+# 69D   [7]  31 00 FA 06 94 00 00
+# 180   [7]  D2 1D FA 06 94 00 01
+# 69D   [7]  61 00 FA 06 94 00 00
+# 300   [7]  D2 1D FA 06 94 00 01
+# 69D   [7]  C1 00 FA 06 94 00 00
+# 600   [7]  D2 1D FA 06 94 00 01
+# according to pyHPSU: "comfort" : "0", "standard" : "1", "eco" : "2"
+    - can_id: 0x180
+      then:
+        - lambda: |-
+            if(x[2]==0xFA && x[3]==0x06 && x[4]==0x94) {
+              float temperature =float((float((int((x[6])+((x[5])<<8))))));
+              if (x[5]==0x00){ id(SGModus).publish_state("Aus"); }
+              else if (x[5]==0x01){ id(SGModus).publish_state("SG Modus 1"); }
+              else if (x[5]==0x02){ id(SGModus).publish_staye("SG Modus 2"); }
+              else id(SGModus).publish_state("Unknown");
+              ESP_LOGD("main", "Temperature received over can is %f", temperature);
+            }
+
+# MixPos (3UV_DHW)
+# Q: 69D   [7]  31 00 FA 06 9B 00 00
+# A: 180   [7]  D2 1D FA 06 9B 00 64 = 100
+# Q: 69D   [7]  61 00 FA 06 9B 00 00
+# A: 300   [7]  D2 1D FA 06 9B 00 64 = 100
+# Q: 69D   [7]  C1 00 FA 06 9B 00 00
+# A: 600   [7]  D2 1D FA 06 9B 00 64 = 100
+    - can_id: 0x180
+      then:
+        - lambda: |-
+            if(x[2]==0xFA && x[3]==0x06 && x[4]==0x9B) {
+              float temperature = float((float((int((x[6])+((x[5])<<8))))));
+              id(mixpos).publish_state(temperature);
               ESP_LOGD("main", "Temperature received over can is %f", temperature);
             }
 
@@ -1279,29 +1237,21 @@ canbus:
             }
 
 #Außentemperaturabfrage (TA)
+# I thought this was (TA), but it's not. Slightly warmer temp reading.
 # Q: 69D   [7]  31 00 FA 0A 0C 00 00
 # A: 180   [7]  D2 1D FA 0A 0C 80 00
 # Q: 69D   [7]  61 00 FA 0A 0C 00 00
 # A: 300   [7]  D2 1D FA 0A 0C 00 CA
 # Q: 69D   [7]  C1 00 FA 0A 0C 00 00
 # A: 600   [7]  D2 1D FA 0A 0C 80 00
-    # - can_id: 0x180
+    # - can_id: 0x300
     #   then:
     #     - lambda: |-
-    #         if(x[1]==0x00 && x[3]==0x00 && x[4]==0x0C) {
+    #         if(x[2]==0xFA && x[3]==0x0A && x[4]==0x0C) {
     #           float temperature = float(((int((x[6])+((x[5])<<8))) ^ 0x8000) - 0x8000)/10;
     #           id(TA).publish_state(temperature);
     #           ESP_LOGD("main", "Temperature received over can is %f", temperature);
     #         }
-# 300   [7]  D2 1D FA 0A 0C 00 CA - confirmed to work from regular HP chatter
-    - can_id: 0x300
-      then:
-        - lambda: |-
-            if(x[2]==0xFA && x[3]==0x0A && x[4]==0x0C) {
-              float temperature = float(((int((x[6])+((x[5])<<8))) ^ 0x8000) - 0x8000)/10;
-              id(TA).publish_state(temperature);
-              ESP_LOGD("main", "Temperature received over can is %f", temperature);
-            }
 
 #Fehlercode
 # Q: 69D   [7]  31 00 FA 13 88 00 00
@@ -1327,6 +1277,30 @@ canbus:
 # Q: 69D   [7]  C1 00 FA C0 F6 00 00
 # A: 600   [7]  D2 1D FA C0 F6 00 04
     - can_id: 0x180
+      then:
+        - lambda: |-
+            if(x[2]==0xFA && x[3]==0xC0 && x[4]==0xF6) {
+              if (x[6]==0x00) { id(betriebsart).publish_state("Standby");
+              } else if (x[6]==0x01) { id(betriebsart).publish_state("Heizen");
+              } else if (x[6]==0x02) { id(betriebsart).publish_state("Kühlen");
+              } else if (x[6]==0x03) { id(betriebsart).publish_state("Abtauen");
+              } else if (x[6]==0x04) { id(betriebsart).publish_state("Warmwasserbereitung");
+              } else { id(betriebsart).publish_state("Unknown");
+              }
+            }
+    - can_id: 0x300
+      then:
+        - lambda: |-
+            if(x[2]==0xFA && x[3]==0xC0 && x[4]==0xF6) {
+              if (x[6]==0x00) { id(betriebsart).publish_state("Standby");
+              } else if (x[6]==0x01) { id(betriebsart).publish_state("Heizen");
+              } else if (x[6]==0x02) { id(betriebsart).publish_state("Kühlen");
+              } else if (x[6]==0x03) { id(betriebsart).publish_state("Abtauen");
+              } else if (x[6]==0x04) { id(betriebsart).publish_state("Warmwasserbereitung");
+              } else { id(betriebsart).publish_state("Unknown");
+              }
+            }
+    - can_id: 0x600
       then:
         - lambda: |-
             if(x[2]==0xFA && x[3]==0xC0 && x[4]==0xF6) {
@@ -1374,22 +1348,6 @@ canbus:
               ESP_LOGD("main", "Temperature received over can is %f", temperature);
             }
 
-# MixPos (3UV_DHW)
-# Q: 69D   [7]  31 00 FA 06 9B 00 00
-# A: 180   [7]  D2 1D FA 06 9B 00 64 = 100
-# Q: 69D   [7]  61 00 FA 06 9B 00 00
-# A: 300   [7]  D2 1D FA 06 9B 00 64 = 100
-# Q: 69D   [7]  C1 00 FA 06 9B 00 00
-# A: 600   [7]  D2 1D FA 06 9B 00 64 = 100
-    - can_id: 0x180
-      then:
-        - lambda: |-
-            if(x[2]==0xFA && x[3]==0x06 && x[4]==0x9B) {
-              float temperature = float((float((int((x[6])+((x[5])<<8))))));
-              id(mixpos).publish_state(temperature);
-              ESP_LOGD("main", "Temperature received over can is %f", temperature);
-            }
-
 #Vorlauftemperaturabfrage (TVBH) - from pyHPSU
 # Q: 69D   [7]  31 00 FA C0 FE 00 00
 # A: 180   [7]  D2 1D FA C0 FE 01 5D = 349 /10 = 34.9
@@ -1398,6 +1356,22 @@ canbus:
 # Q: 69D   [7]  C1 00 FA C0 FE 00 00
 # A: 600   [7]  D2 1D FA C0 FE 01 5F = 351 / 10 = 35.1
     - can_id: 0x180
+      then:
+        - lambda: |-
+            if(x[2]==0xFA && x[3]==0xC0 && x[4]==0xFE) {
+              float temperature = float(float((int((x[6])+((x[5])<<8))))/10);
+              id(TVBH).publish_state(temperature);
+              ESP_LOGD("main", "Temperature received over can is %f", temperature);
+            } 
+    - can_id: 0x300
+      then:
+        - lambda: |-
+            if(x[2]==0xFA && x[3]==0xC0 && x[4]==0xFE) {
+              float temperature = float(float((int((x[6])+((x[5])<<8))))/10);
+              id(TVBH).publish_state(temperature);
+              ESP_LOGD("main", "Temperature received over can is %f", temperature);
+            } 
+    - can_id: 0x600
       then:
         - lambda: |-
             if(x[2]==0xFA && x[3]==0xC0 && x[4]==0xFE) {
@@ -1414,6 +1388,22 @@ canbus:
 # Q: 69D   [7]  C1 00 FA C1 02 00 00
 # A: 600   [7]  D2 1D FA C1 02 01 DE = 478
     - can_id: 0x180
+      then:
+        - lambda: |-
+            if(x[2]==0xFA && x[3]==0xC1 && x[4]==0x02) {
+              float temperature = float(float((int((x[6])+((x[5])<<8))))/10);
+              id(TVBH).publish_state(temperature);
+              ESP_LOGD("main", "Temperature received over can is %f", temperature);
+            }
+    - can_id: 0x300
+      then:
+        - lambda: |-
+            if(x[2]==0xFA && x[3]==0xC1 && x[4]==0x02) {
+              float temperature = float(float((int((x[6])+((x[5])<<8))))/10);
+              id(TVBH).publish_state(temperature);
+              ESP_LOGD("main", "Temperature received over can is %f", temperature);
+            }
+    - can_id: 0x600
       then:
         - lambda: |-
             if(x[2]==0xFA && x[3]==0xC1 && x[4]==0x02) {
@@ -1457,8 +1447,6 @@ canbus:
     #           ESP_LOGD("main", "Temperature received over can is %f", temperature);
     #         }
 
-
-
 #WW_Soll_Set 0x30, 0x00, 0x13, 0x00, 0x00, 0x00, 0x00 (Automatik bei jeglicher Änderung)
 # SvdE: strange, need to look into this one. I've implemented a listening one that update dhw_setpoint. FA 00 13
     - can_id: 0x180
@@ -1471,14 +1459,14 @@ canbus:
             }
 
 #Status Kessel
-# SvdE: mot found
+# SvdE: mot requested by rocon-g1
     - can_id: 0x180
       then:
         - lambda: |-
             if(x[2]==0xFA && x[3]==0x0A && x[4]==0x8C) {
-             float temperature = float((float((int((x[6])+((x[5])<<8))))));
-             id(status_kessel).publish_state(temperature);
-             ESP_LOGD("main", "Temperature received over can is %f", temperature);
+              if (x[6]==0x00) { id(status_kessel).publish_state("Aus");
+              } else if (x[6]==0x01) { id(status_kessel).publish_state("An");
+              } else { id(status_kessel).publish_state("Unknown");
             }
 
 #VL Soll
@@ -1525,7 +1513,7 @@ canbus:
             ESP_LOGI("main", "Antwort von 300 Dez.: %i %i", wert5, wert6);
 
 #Show data in raw form as hex-values
-    - can_id: 0x301
+    - can_id: 0x310
       then:
         - lambda: |-
             int wert0 = int(x[0]);
@@ -1536,7 +1524,54 @@ canbus:
             int wert5 = int(x[5]);
             int wert6 = int(x[6]);
             float wert7 = float(int((x[6])+((x[5])<<8)));
-            ESP_LOGD("main", "Antwort von 301 Hex: %x %x %x %x %x %x %x", wert0, wert1, wert2, wert3, wert4, wert5, wert6);
-            ESP_LOGD("main", "Antwort von 301 Float: %f", wert7);
-            ESP_LOGI("main", "Antwort von 301 Dez.: %i %i", wert5, wert6);
+            ESP_LOGD("main", "Antwort von 310 Hex: %x %x %x %x %x %x %x", wert0, wert1, wert2, wert3, wert4, wert5, wert6);
+            ESP_LOGD("main", "Antwort von 310 Float: %f", wert7);
+            ESP_LOGI("main", "Antwort von 310 Dez.: %i %i", wert5, wert6);
 
+#Show data in raw form as hex-values
+    - can_id: 0x500
+      then:
+        - lambda: |-
+            int wert0 = int(x[0]);
+            int wert1 = int(x[1]);
+            int wert2 = int(x[2]);
+            int wert3 = int(x[3]);
+            int wert4 = int(x[4]);
+            int wert5 = int(x[5]);
+            int wert6 = int(x[6]);
+            float wert7 = float(int((x[6])+((x[5])<<8)));
+            ESP_LOGD("main", "Antwort von 500 Hex: %x %x %x %x %x %x %x", wert0, wert1, wert2, wert3, wert4, wert5, wert6);
+            ESP_LOGD("main", "Antwort von 500 Float: %f", wert7);
+            ESP_LOGI("main", "Antwort von 500 Dez.: %i %i", wert5, wert6);
+
+#Show data in raw form as hex-values
+    - can_id: 0x600
+      then:
+        - lambda: |-
+            int wert0 = int(x[0]);
+            int wert1 = int(x[1]);
+            int wert2 = int(x[2]);
+            int wert3 = int(x[3]);
+            int wert4 = int(x[4]);
+            int wert5 = int(x[5]);
+            int wert6 = int(x[6]);
+            float wert7 = float(int((x[6])+((x[5])<<8)));
+            ESP_LOGD("main", "Antwort von 600 Hex: %x %x %x %x %x %x %x", wert0, wert1, wert2, wert3, wert4, wert5, wert6);
+            ESP_LOGD("main", "Antwort von 600 Float: %f", wert7);
+            ESP_LOGI("main", "Antwort von 600 Dez.: %i %i", wert5, wert6);
+
+#Show data in raw form as hex-values
+    - can_id: 0x680
+      then:
+        - lambda: |-
+            int wert0 = int(x[0]);
+            int wert1 = int(x[1]);
+            int wert2 = int(x[2]);
+            int wert3 = int(x[3]);
+            int wert4 = int(x[4]);
+            int wert5 = int(x[5]);
+            int wert6 = int(x[6]);
+            float wert7 = float(int((x[6])+((x[5])<<8)));
+            ESP_LOGD("main", "Antwort von 680 Hex: %x %x %x %x %x %x %x", wert0, wert1, wert2, wert3, wert4, wert5, wert6);
+            ESP_LOGD("main", "Antwort von 680 Float: %f", wert7);
+            ESP_LOGI("main", "Antwort von 680 Dez.: %i %i", wert5, wert6);
