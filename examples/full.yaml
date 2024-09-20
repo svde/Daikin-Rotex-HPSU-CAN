@@ -42,7 +42,7 @@ wifi:
 
   ap:
     ssid: DaikinRotex Fallback Hotspot
-    password: !secret fallback_hotspot_password
+    password: H3jGqANSa7aL
 
 captive_portal:
 
@@ -82,8 +82,8 @@ canbus:
   - platform: esp32_can
     id: can_bus
     can_id: 0x680
-    rx_pin: GPIO2
-    tx_pin: GPIO3
+    tx_pin: GPIO47
+    rx_pin: GPIO48
     bit_rate: 20kbps
 
 daikin_rotex_can:
@@ -116,9 +116,6 @@ daikin_rotex_can:
 #T-Rücklauf
     flow_rate:
       name: Durchfluss
-      update_interval: 10
-    flow_rate_calc:
-      name: DurchflussBer
       update_interval: 10
 #T-HK
 #T-HK Soll
