@@ -20,6 +20,7 @@ public:
 
     void set_canbus(esphome::esp32_can::ESP32Can* pCanbus);
     void set_update_interval(uint16_t seconds) {} // dummy
+    void set_project_git_hash(text_sensor::TextSensor* pSensor, std::string const& hash) { m_project_git_hash_sensor = pSensor; m_project_git_hash = hash; }
 
     // Texts
     void custom_request(std::string const& value);
@@ -63,9 +64,12 @@ private:
     };
 
     void updateState(std::string const& id);
+    bool on_custom_select(std::string const& id, uint8_t value);
+    void on_mode_of_operating();
 
     float getSensorState(std::string const& name);
     void throwPeriodicError(std::string const& message);
+    bool is_command_set(TMessage const&);
     Accessor::TEntityArguments const* get_select_entity_conf(std::string const& id) const;
 
     Accessor m_accessor;
@@ -75,6 +79,11 @@ private:
     std::shared_ptr<MyAction> m_canbus_action;
     std::list<std::pair<TVoidFunc, uint32_t>> m_later_calls;
     std::list<TVoidFunc> m_dhw_run_lambdas;
+
+    bool m_optimized_defrosting;
+    ESPPreferenceObject m_optimized_defrosting_pref;
+    text_sensor::TextSensor* m_project_git_hash_sensor;
+    std::string m_project_git_hash;
 };
 
 inline void DaikinRotexCanComponent::set_canbus(esphome::esp32_can::ESP32Can* pCanbus) {

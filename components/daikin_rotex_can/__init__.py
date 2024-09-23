@@ -6,9 +6,12 @@ from esphome.core import Lambda
 from esphome.cpp_generator import MockObj
 from esphome.cpp_types import std_ns
 from esphome.components.canbus import CanbusComponent
-#from esphome.const import (
-#    ENTITY_CATEGORY_CONFIG,
-#)
+from esphome import core
+import subprocess
+import logging
+import os
+
+_LOGGER = logging.getLogger(__name__)
 
 daikin_rotex_can_ns = cg.esphome_ns.namespace('daikin_rotex_can')
 DaikinRotexCanComponent = daikin_rotex_can_ns.class_('DaikinRotexCanComponent', cg.Component)
@@ -29,10 +32,57 @@ UNIT_LITER_PER_MIN = "L/min"
 ########## Icons ##########
 ICON_SUN_SNOWFLAKE_VARIANT = "mdi:sun-snowflake-variant"
 
+result = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], stdout=subprocess.PIPE, text=True, cwd=os.path.dirname(os.path.realpath(__file__)))
+git_hash = result.stdout.strip()
+_LOGGER.info("Project Git Hash %s", git_hash)
+
 ########## Configuration of Sensors, TextSensors, BinarySensors, Selects and Numbers ##########
 
 sensor_configuration = [
    {
+        "type": "select",
+        "name": "1_dhw" ,
+        "icon": "mdi:hand-water",
+        "command": "31 00 FA 01 44 00 00",
+        "data_offset": 6,
+        "data_size": 1,
+        "map": {
+            0x00: "Aus",
+            0x01: "An"
+        }
+    },
+    {
+        "type": "number",
+        "name": "hp_hyst_tdhw",
+        "device_class": DEVICE_CLASS_TEMPERATURE,
+        "unit_of_measurement": UNIT_KELVIN,
+        "accuracy_decimals": 1,
+        "state_class": STATE_CLASS_MEASUREMENT,
+        "icon": "mdi:arrow-left-right",
+        "min_value": 2,
+        "max_value": 20,
+        "step": 0.1,
+        "command": "31 00 FA 06 91 00 00",
+        "data_offset": 5,
+        "data_size": 2,
+        "divider": 10.0
+    },
+    {
+        "type": "number",
+        "name": "delay_time_for_backup_heating",
+        "unit_of_measurement": UNIT_MINUTE,
+        "accuracy_decimals": 0,
+        "state_class": STATE_CLASS_MEASUREMENT,
+        "icon": "mdi:clock-time-two-outline",
+        "min_value": 20,
+        "max_value": 95,
+        "step": 1,
+        "command": "31 00 FA 06 92 00 00",
+        "data_offset": 5,
+        "data_size": 2,
+        "divider": 1
+    },
+    {
         "type": "select",
         "name": "outdoor_unit" ,
         "icon": ICON_SUN_SNOWFLAKE_VARIANT,
@@ -227,6 +277,7 @@ sensor_configuration = [
         "unit_of_measurement": UNIT_CELSIUS,
         "accuracy_decimals": 1,
         "state_class": STATE_CLASS_MEASUREMENT,
+        "can_id": 0x300,
         "command": "61 00 FA 0A 0C 00 00",
         "data_offset": 5,
         "data_size": 2,
@@ -638,13 +689,60 @@ sensor_configuration = [
         "unit_of_measurement": UNIT_CELSIUS,
         "accuracy_decimals": 1,
         "state_class": STATE_CLASS_MEASUREMENT,
-        "min_value": 25,
-        "max_value": 60,
-        "step": 1,
+        "min_value": 20,
+        "max_value": 90,
+        "step": 0.1,
         "command": "31 00 FA 01 29 00 00",
         "data_offset": 5,
         "data_size": 2,
         "divider": 10.0
+    },
+    {
+        "type": "number",
+        "name": "flow_temperature_night",
+        "device_class": DEVICE_CLASS_TEMPERATURE,
+        "unit_of_measurement": UNIT_CELSIUS,
+        "accuracy_decimals": 1,
+        "state_class": STATE_CLASS_MEASUREMENT,
+        "min_value": 10,
+        "max_value": 90,
+        "step": 0.1,
+        "command": "31 00 FA 01 2A 00 00",
+        "data_offset": 5,
+        "data_size": 2,
+        "divider": 10.0
+    },
+    {
+        "type": "select",
+        "name": "heating_limit_day",
+        "device_class": DEVICE_CLASS_TEMPERATURE,
+        "unit_of_measurement": UNIT_CELSIUS,
+        "accuracy_decimals": 1,
+        "state_class": STATE_CLASS_MEASUREMENT,
+        "min_value": 0,
+        "max_value": 40,
+        "step": 1,
+        "command": "31 00 FA 01 16",
+        "data_offset": 5,
+        "data_size": 2,
+        "divider": 10.0,
+        "map": {0xFE70 / 10.0: "Aus", **{i: f"{i} °C" for i in range(10, 41)}}
+    },
+    {
+        "type": "select",
+        "name": "heating_limit_night",
+        "device_class": DEVICE_CLASS_TEMPERATURE,
+        "unit_of_measurement": UNIT_CELSIUS,
+        "accuracy_decimals": 1,
+        "state_class": STATE_CLASS_MEASUREMENT,
+        "min_value": 0,
+        "max_value": 40,
+        "step": 1,
+        "command": "31 00 FA 01 17",
+        "data_offset": 5,
+        "data_size": 2,
+        "divider": 10.0,
+        "map": {0x5A / 10.0: "Aus", **{i: f"{i} °C" for i in range(10, 41)}}
     },
     {
         "type": "number",
@@ -669,8 +767,8 @@ sensor_configuration = [
         "accuracy_decimals": 0,
         "state_class": STATE_CLASS_MEASUREMENT,
         "icon": "mdi:waves-arrow-left",
-        "min_value": 25,
-        "max_value": 40,
+        "min_value": 10,
+        "max_value": 90,
         "step": 1,
         "command": "31 00 FA 01 2B 00 00",
         "data_offset": 5,
@@ -685,8 +783,8 @@ sensor_configuration = [
         "accuracy_decimals": 0,
         "state_class": STATE_CLASS_MEASUREMENT,
         "icon": "mdi:waves-arrow-right",
-        "min_value": 25,
-        "max_value": 60,
+        "min_value": 20,
+        "max_value": 90,
         "step": 1,
         "command": "31 00 28 00 00 00 00",
         "data_offset": 3,
@@ -726,8 +824,8 @@ sensor_configuration = [
         "name": "mode_of_operating" ,
         "icon": ICON_SUN_SNOWFLAKE_VARIANT,
         "command": "31 00 FA C0 F6 00 00",
-        "data_offset": 5,
-        "data_size": 2,
+        "data_offset": 6,
+        "data_size": 1,
         "map": {
             0x00: "Standby",
             0x01: "Heizen",
@@ -736,6 +834,23 @@ sensor_configuration = [
             0x04: "Warmwasserbereitung"
         },
         "update_entity": "thermal_power"
+    },
+    {
+        "type": "select",
+        "name": "operating_mode" ,
+        "icon": ICON_SUN_SNOWFLAKE_VARIANT,
+        "command": "31 00 FA 01 12 00 00",
+        "data_offset": 5,
+        "data_size": 1,
+        "map": {
+            0x01: "Bereitschaft",
+            0x03: "Heizen",
+            0x04: "Absenken",
+            0x05: "Sommer",
+            0x11: "Kühlen",
+            0x0B: "Automatik 1",
+            0x0C: "Automatik 2"
+        }
     },
     {
         "type": "select",
@@ -822,6 +937,7 @@ sensor_configuration = [
         "type": "binary_sensor",
         "name": "status_kompressor" ,
         "icon": "mdi:pump",
+        "can_id": 0x500,
         "command": "A1 00 61 00 00 00 00",
         "data_offset": 3,
         "data_size": 1
@@ -833,23 +949,6 @@ sensor_configuration = [
         "command": "31 00 FA 0A 8C 00 00",
         "data_offset": 6,
         "data_size": 1
-    },
-    {
-        "type": "select",
-        "name": "operating_mode" ,
-        "icon": ICON_SUN_SNOWFLAKE_VARIANT,
-        "command": "31 00 FA 01 12 00 00",
-        "data_offset": 5,
-        "data_size": 1,
-        "map": {
-            0x01: "Bereitschaft",
-            0x03: "Heizen",
-            0x04: "Absenken",
-            0x05: "Sommer",
-            0x11: "Kühlen",
-            0x0B: "Automatik 1",
-            0x0C: "Automatik 2"
-        }
     },
     {
         "type": "select",
@@ -1048,6 +1147,77 @@ sensor_configuration = [
             0x05: "SG2 - WW & HZ + 5°C",
             0x06: "SG3 - WW 70°C"
         }
+    },
+
+    {
+        "type": "number",
+        "name": "max_heating_temperature",
+        "device_class": DEVICE_CLASS_TEMPERATURE,
+        "unit_of_measurement": UNIT_CELSIUS,
+        "accuracy_decimals": 1,
+        "state_class": STATE_CLASS_MEASUREMENT,
+        "min_value": 5,
+        "max_value": 85,
+        "step": 1,
+        "command": "31 00 FA 06 6E",
+        "data_offset": 5,
+        "data_size": 2,
+        "divider": 10.0
+    },
+#    {
+#        "type": "number",
+#        "name": "bivalent_temperature",
+#        "device_class": DEVICE_CLASS_TEMPERATURE,
+#        "unit_of_measurement": UNIT_CELSIUS,
+#        "accuracy_decimals": 1,
+#        "state_class": STATE_CLASS_MEASUREMENT,
+#        "min_value": -15,
+#        "max_value": 35,
+#        "step": 1,
+#        "can_id": 0x500,
+#        "command": "31 00 FA 06 D4",
+#        "data_offset": 5,
+#        "data_size": 2,
+#        "divider": 10.0
+#    },
+    {
+        "type": "number",
+        "name": "supply_temperature_adjustment_heating",
+        "device_class": DEVICE_CLASS_TEMPERATURE,
+        "unit_of_measurement": UNIT_KELVIN,
+        "accuracy_decimals": 1,
+        "state_class": STATE_CLASS_MEASUREMENT,
+        "min_value": 0,
+        "max_value": 50,
+        "step": 1,
+        "command": "31 00 FA 06 A0",
+        "data_offset": 5,
+        "data_size": 2,
+        "divider": 10.0
+    },
+    {
+        "type": "number",
+        "name": "supply_temperature_adjustment_cooling",
+        "device_class": DEVICE_CLASS_TEMPERATURE,
+        "unit_of_measurement": UNIT_KELVIN,
+        "accuracy_decimals": 1,
+        "state_class": STATE_CLASS_MEASUREMENT,
+        "min_value": 0,
+        "max_value": 50,
+        "step": 1,
+        "command": "31 00 FA 06 A1",
+        "data_offset": 5,
+        "data_size": 2,
+        "divider": 10.0
+    },
+    {
+        "type": "select",
+        "name": "optimized_defrosting",
+        "icon": "mdi:snowflake-melt",
+        "map": {
+            0x00: "Aus",
+            0x01: "An"
+        }
     }
 ]
 
@@ -1061,6 +1231,7 @@ CONF_LOG_FILTER_TEXT = "log_filter"
 CONF_CUSTOM_REQUEST_TEXT = "custom_request"
 CONF_ENTITIES = "entities"
 CONF_SELECT_OPTIONS = "options"
+CONF_PROJECT_GIT_HASH = "project_git_hash"
 
 ########## Sensors ##########
 
@@ -1178,6 +1349,13 @@ CONFIG_SCHEMA = cv.Schema(
                 cv.Optional(CONF_MODE, default="TEXT"): cv.enum(text.TEXT_MODES, upper=True),
             }
         ),
+        cv.Required(CONF_PROJECT_GIT_HASH): text_sensor.text_sensor_schema(
+            icon="mdi:git",
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC
+        ),
+
+        ########## Buttons ##########
+
         cv.Optional(CONF_DUMP): button.button_schema(
             DumpButton,
             entity_category=ENTITY_CATEGORY_CONFIG,
@@ -1213,6 +1391,14 @@ async def to_code(config):
         t = await text.new_text(text_conf)
         await cg.register_parented(t, var)
         cg.add(var.getAccessor().set_custom_request_text(t))
+
+    ########## Text Sensors ##########
+
+    if text_conf := config.get(CONF_PROJECT_GIT_HASH):
+        t = await text_sensor.new_text_sensor(text_conf)
+        cg.add(var.set_project_git_hash(t, git_hash))
+
+    ########## Buttons ##########
 
     if button_conf := config.get(CONF_DUMP):
         but = await button.new_button(button_conf)
@@ -1266,9 +1452,6 @@ async def to_code(config):
                 if update_interval < 0:
                     update_interval = config[CONF_UPDATE_INTERVAL]
 
-                if "command" not in sens_conf:
-                    raise Exception("command is required for number: " + sens_conf.get("name"))
-
                 async def handle_lambda():
                     lamb = str(sens_conf.get("handle_lambda")) if "handle_lambda" in sens_conf else "return 0;"
                     return await cg.process_lambda(
@@ -1288,7 +1471,8 @@ async def to_code(config):
                 cg.add(var.getAccessor().set_entity(sens_conf.get("name"), [
                     entity,
                     sens_conf.get("name"),
-                    sens_conf.get("command"),
+                    sens_conf.get("can_id", 0x180),
+                    sens_conf.get("command", ""),
                     sens_conf.get("data_offset", 5),
                     sens_conf.get("data_size", 1),
                     divider,
